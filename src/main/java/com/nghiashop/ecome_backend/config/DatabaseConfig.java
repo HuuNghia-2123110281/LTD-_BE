@@ -41,7 +41,7 @@ public class DatabaseConfig {
         }
 
         if (databaseUrl == null) {
-            databaseUrl = "jdbc:postgresql://localhost:5432/hotelmanagement";
+            databaseUrl = "jdbc:postgresql://localhost:5432/backend";
             username = "postgres";
             password = "postgres";
         }
