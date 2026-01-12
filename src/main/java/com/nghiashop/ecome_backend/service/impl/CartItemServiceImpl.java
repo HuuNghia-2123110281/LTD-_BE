@@ -22,7 +22,9 @@ public class CartItemServiceImpl implements CartItemService {
 
     @Override
     public CartItem getById(Long id) {
-        return cartItemRepository.findById(id).orElseThrow();
+        return cartItemRepository.findById(id).orElseThrow(
+            () -> new RuntimeException("Không tìm thấy sản phẩm trong giỏ hàng")
+        );
     }
 
     @Override
@@ -34,6 +36,7 @@ public class CartItemServiceImpl implements CartItemService {
     public CartItem update(Long id, CartItem cartItem) {
         CartItem existing = getById(id);
         existing.setQuantity(cartItem.getQuantity());
+        existing.setPrice(cartItem.getPrice());
         existing.setProduct(cartItem.getProduct());
         existing.setCart(cartItem.getCart());
         return cartItemRepository.save(existing);
@@ -42,5 +45,22 @@ public class CartItemServiceImpl implements CartItemService {
     @Override
     public void delete(Long id) {
         cartItemRepository.deleteById(id);
+    }
+
+    @Override
+    public CartItem findByCartIdAndProductId(Long cartId, Long productId) {
+        return cartItemRepository.findByCartIdAndProductId(cartId, productId)
+                .orElse(null);
+    }
+
+    @Override
+    public List<CartItem> findByCartId(Long cartId) {
+        return cartItemRepository.findByCartId(cartId);
+    }
+
+    @Override
+    public void deleteByCartId(Long cartId) {
+        List<CartItem> items = findByCartId(cartId);
+        cartItemRepository.deleteAll(items);
     }
 }
