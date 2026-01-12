@@ -1,5 +1,7 @@
 package com.nghiashop.ecome_backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -17,20 +19,22 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CartItem {
-
+    
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
+    
     @ManyToOne
-    @JoinColumn(name = "cart_id")
+    @JoinColumn(name = "cart_id", nullable = false)
+    @JsonIgnoreProperties({"items", "user"})
     private Cart cart;
-
+    
     @ManyToOne
-    @JoinColumn(name = "product_id")
+    @JoinColumn(name = "product_id", nullable = false)
+    @JsonIgnoreProperties({"category"})
     private Product product;
-
-    private Integer quantity;
-
-    private Long price;
+    
+    private int quantity;
+    
+    private double price;
 }

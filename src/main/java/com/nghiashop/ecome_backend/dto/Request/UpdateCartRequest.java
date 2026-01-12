@@ -1,4 +1,5 @@
-package com.nghiashop.ecome_backend.dto.Request; 
+package com.nghiashop.ecome_backend.dto.Request;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -6,7 +7,6 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class AddToCartRequest {
-    private Long productId;
+public class UpdateCartRequest {
     private int quantity;
 }

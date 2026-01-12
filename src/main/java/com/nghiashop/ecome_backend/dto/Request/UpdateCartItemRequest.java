@@ -1,5 +1,6 @@
 package com.nghiashop.ecome_backend.dto.Request;
 
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -8,5 +9,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UpdateCartItemRequest {
-    private Integer quantity;
+    private int quantity;
 }
