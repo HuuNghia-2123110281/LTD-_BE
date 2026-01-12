@@ -1,9 +1,7 @@
 package com.nghiashop.ecome_backend.dto.Response;
 
 import java.util.List;
-
-import com.nghiashop.ecome_backend.entity.CartItem;
-
+import com.nghiashop.ecome_backend.dto.CartItemDTO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,7 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CartResponse {
     private Long cartId;
-    private List<CartItem> items;
+    private List<CartItemDTO> items; 
     private int totalItems;
     private double totalPrice;
 }

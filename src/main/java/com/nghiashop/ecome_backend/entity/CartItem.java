@@ -1,7 +1,6 @@
 package com.nghiashop.ecome_backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -31,7 +30,6 @@ public class CartItem {
     
     @ManyToOne
     @JoinColumn(name = "product_id", nullable = false)
-    @JsonIgnoreProperties({"category"})
     private Product product;
     
     private int quantity;
