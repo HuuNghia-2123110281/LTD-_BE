@@ -1,18 +1,15 @@
 package com.nghiashop.ecome_backend.controller;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import com.nghiashop.ecome_backend.entity.Order;
+import com.nghiashop.ecome_backend.entity.OrderItem;
 import com.nghiashop.ecome_backend.service.OrderService;
 
 @RestController
@@ -26,19 +23,35 @@ public class OrderController {
     public List<Order> getAll() {
         return orderService.getAll();
     }
+    
+    // API lấy chi tiết đơn hàng (Dùng để App kiểm tra trạng thái)
+    @GetMapping("/{id}")
+    public ResponseEntity<Order> getOrderById(@PathVariable Long id) {
+        // Lưu ý: Bạn cần thêm hàm findById trong OrderService nếu chưa có.
+        // Hoặc dùng trực tiếp Repository nếu muốn nhanh: orderRepository.findById(id)
+        // Ở đây mình giả sử Service đã có hàm getById hoặc findById
+        Order order = orderService.getById(id); 
+        if (order != null) {
+             return ResponseEntity.ok(order);
+        }
+        return ResponseEntity.notFound().build();
+    }
 
     @PostMapping
-    public Order create(@RequestBody Order order) {
-        return orderService.create(order);
-    }
+    public ResponseEntity<Order> create(@RequestBody Order order) {
+        order.setCreatedAt(LocalDateTime.now());
+        
+        // Luôn set trạng thái ban đầu là PENDING
+        order.setStatus("PENDING");
 
-    @PutMapping("/{id}")
-    public Order update(@PathVariable Long id, @RequestBody Order order) {
-        return orderService.update(id, order);
-    }
+        // Liên kết OrderItem với Order
+        if (order.getItems() != null) {
+            for (OrderItem item : order.getItems()) {
+                item.setOrder(order);
+            }
+        }
 
-    @DeleteMapping("/{id}")
-    public void delete(@PathVariable Long id) {
-        orderService.delete(id);
+        Order savedOrder = orderService.create(order);
+        return ResponseEntity.ok(savedOrder);
     }
 }

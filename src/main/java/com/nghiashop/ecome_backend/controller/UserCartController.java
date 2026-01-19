@@ -16,12 +16,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.nghiashop.ecome_backend.dto.CartItemDTO;
 import com.nghiashop.ecome_backend.dto.Request.AddToCartRequest;
 import com.nghiashop.ecome_backend.dto.Request.UpdateCartRequest;
 import com.nghiashop.ecome_backend.dto.Response.CartResponse;
-
+import com.nghiashop.ecome_backend.dto.CartItemDTO;
 import com.nghiashop.ecome_backend.entity.Cart;
 import com.nghiashop.ecome_backend.entity.CartItem;
 import com.nghiashop.ecome_backend.entity.Product;
@@ -51,12 +49,28 @@ public class UserCartController {
     @GetMapping
     public ResponseEntity<CartResponse> getCart(Authentication authentication) {
         try {
+            System.out.println("=== GET CART REQUEST ===");
             String email = authentication.getName();
+            System.out.println("User email: " + email);
+            
             User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
+            
+            System.out.println("User ID: " + user.getId());
 
             Cart cart = cartService.getOrCreateCartByUserId(user.getId());
+            System.out.println("Cart ID: " + cart.getId());
+            
             List<CartItem> items = cartItemService.findByCartId(cart.getId());
+            System.out.println("Cart items count: " + items.size());
+
+            // Log chi tiết từng item
+            for (CartItem item : items) {
+                System.out.println("  Item ID: " + item.getId() + 
+                                 ", Product: " + item.getProduct().getName() + 
+                                 ", Quantity: " + item.getQuantity() +
+                                 ", Price: " + item.getPrice());
+            }
 
             List<CartItemDTO> itemDTOs = items.stream()
                     .map(item -> new CartItemDTO(
@@ -74,10 +88,18 @@ public class UserCartController {
                     .mapToInt(CartItem::getQuantity)
                     .sum();
 
-            CartResponse response = new CartResponse();
+            CartResponse response = new CartResponse(
+                    cart.getId(),
+                    itemDTOs,
+                    totalItems,
+                    totalPrice);
+
+            System.out.println("Response - Total Items: " + totalItems + ", Total Price: " + totalPrice);
+            System.out.println("======================");
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            System.err.println("ERROR in getCart: " + e.getMessage());
             e.printStackTrace();
             throw new RuntimeException("Lỗi khi lấy giỏ hàng: " + e.getMessage());
         }
@@ -89,12 +111,23 @@ public class UserCartController {
             @RequestBody AddToCartRequest request,
             Authentication authentication) {
         try {
+            System.out.println("=== ADD TO CART REQUEST ===");
+            System.out.println("Product ID: " + request.getProductId());
+            System.out.println("Quantity: " + request.getQuantity());
+            
             String email = authentication.getName();
+            System.out.println("User email: " + email);
+            
             User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
+            
+            System.out.println("User ID: " + user.getId());
 
             Cart cart = cartService.getOrCreateCartByUserId(user.getId());
+            System.out.println("Cart ID: " + cart.getId());
+            
             Product product = productService.getById(request.getProductId());
+            System.out.println("Product found: " + product.getName() + ", Stock: " + product.getStock());
 
             if (product.getStock() < request.getQuantity()) {
                 throw new RuntimeException("Không đủ hàng trong kho");
@@ -105,21 +138,34 @@ public class UserCartController {
                     product.getId());
 
             if (existingItem != null) {
+                System.out.println("Existing item found, updating quantity from " + 
+                                 existingItem.getQuantity() + " to " + 
+                                 (existingItem.getQuantity() + request.getQuantity()));
                 existingItem.setQuantity(existingItem.getQuantity() + request.getQuantity());
-                cartItemService.update(existingItem.getId(), existingItem);
+                CartItem updated = cartItemService.update(existingItem.getId(), existingItem);
+                System.out.println("Updated item ID: " + updated.getId() + ", New quantity: " + updated.getQuantity());
             } else {
+                System.out.println("Creating new cart item");
                 CartItem newItem = new CartItem();
                 newItem.setCart(cart);
                 newItem.setProduct(product);
                 newItem.setQuantity(request.getQuantity());
                 newItem.setPrice(product.getPrice());
-                cartItemService.create(newItem);
+                CartItem created = cartItemService.create(newItem);
+                System.out.println("Created item ID: " + created.getId());
             }
+
+            // Verify lại số lượng items
+            List<CartItem> allItems = cartItemService.findByCartId(cart.getId());
+            System.out.println("Total items in cart after add: " + allItems.size());
 
             Map<String, String> response = new HashMap<>();
             response.put("message", "Đã thêm vào giỏ hàng");
+            System.out.println("=========================");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            System.err.println("ERROR in addToCart: " + e.getMessage());
+            e.printStackTrace();
             throw new RuntimeException("Lỗi khi thêm vào giỏ: " + e.getMessage());
         }
     }
@@ -131,6 +177,10 @@ public class UserCartController {
             @RequestBody UpdateCartRequest request,
             Authentication authentication) {
         try {
+            System.out.println("=== UPDATE CART ITEM ===");
+            System.out.println("Cart Item ID: " + cartItemId);
+            System.out.println("New Quantity: " + request.getQuantity());
+            
             CartItem cartItem = cartItemService.getById(cartItemId);
 
             if (request.getQuantity() < 1) {
@@ -143,11 +193,15 @@ public class UserCartController {
 
             cartItem.setQuantity(request.getQuantity());
             cartItemService.update(cartItemId, cartItem);
+            System.out.println("Updated successfully");
+            System.out.println("======================");
 
             Map<String, String> response = new HashMap<>();
             response.put("message", "Đã cập nhật giỏ hàng");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            System.err.println("ERROR in updateCartItem: " + e.getMessage());
+            e.printStackTrace();
             throw new RuntimeException("Lỗi khi cập nhật: " + e.getMessage());
         }
     }
@@ -158,12 +212,19 @@ public class UserCartController {
             @PathVariable Long cartItemId,
             Authentication authentication) {
         try {
+            System.out.println("=== REMOVE FROM CART ===");
+            System.out.println("Cart Item ID: " + cartItemId);
+            
             cartItemService.delete(cartItemId);
+            System.out.println("Deleted successfully");
+            System.out.println("=======================");
 
             Map<String, String> response = new HashMap<>();
             response.put("message", "Đã xóa sản phẩm");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            System.err.println("ERROR in removeFromCart: " + e.getMessage());
+            e.printStackTrace();
             throw new RuntimeException("Lỗi khi xóa: " + e.getMessage());
         }
     }
@@ -172,19 +233,26 @@ public class UserCartController {
     @DeleteMapping("/clear")
     public ResponseEntity<Map<String, String>> clearCart(Authentication authentication) {
         try {
+            System.out.println("=== CLEAR CART ===");
             String email = authentication.getName();
+            System.out.println("User email: " + email);
+            
             User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
 
             Cart cart = cartService.findByUserId(user.getId());
             if (cart != null) {
                 cartItemService.deleteByCartId(cart.getId());
+                System.out.println("Cart cleared successfully");
             }
+            System.out.println("==================");
 
             Map<String, String> response = new HashMap<>();
             response.put("message", "Đã xóa toàn bộ giỏ hàng");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            System.err.println("ERROR in clearCart: " + e.getMessage());
+            e.printStackTrace();
             throw new RuntimeException("Lỗi khi xóa giỏ hàng: " + e.getMessage());
         }
     }
