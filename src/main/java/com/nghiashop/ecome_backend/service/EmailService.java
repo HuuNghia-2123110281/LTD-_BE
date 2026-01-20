@@ -16,7 +16,7 @@ public class EmailService {
         // XÓA TRY-CATCH ĐI, ĐỂ LỖI BẮN THẲNG RA NGOÀI
         
         SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom("NghiaShop Support <nghia03052004@gmail.com>");
+        message.setFrom("NghiaShop Support <nguyenhuunghia03052004@gmail.com>");
         message.setTo(to);
         message.setSubject(subject);
         message.setText(text);
