@@ -1,12 +1,7 @@
 package com.nghiashop.ecome_backend.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -22,15 +17,19 @@ public class OrderItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "order_id")
-    private Order order;
-
+    // Liên kết với sản phẩm
     @ManyToOne
     @JoinColumn(name = "product_id")
     private Product product;
 
-    private Integer quantity;
+    private int quantity;
+    
+    // Lưu giá tiền tại thời điểm mua (để sau này giá sản phẩm đổi cũng không ảnh hưởng đơn cũ)
+    private Long price; 
 
-    private Long price;
+    // --- SỬA LỖI TẠI ĐÂY ---
+    @ManyToOne
+    @JoinColumn(name = "order_id")
+    @JsonIgnore 
+    private Order order;
 }
