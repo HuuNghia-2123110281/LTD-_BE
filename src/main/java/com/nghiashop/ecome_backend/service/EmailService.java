@@ -1,22 +1,20 @@
 package com.nghiashop.ecome_backend.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class EmailService {
 
-    @Autowired
-    private JavaMailSender emailSender;
+    // XÓA HOẶC COMMENT DÒNG NÀY ĐI
+    // @Autowired
+    // private JavaMailSender emailSender; 
 
     public void sendEmail(String to, String subject, String text) {
-        SimpleMailMessage message = new SimpleMailMessage();
-        // Thay bằng email của bạn hoặc tên hiển thị mong muốn
-        message.setFrom("NghiaShop@support.com"); 
-        message.setTo(to);
-        message.setSubject(subject);
-        message.setTo(text);
-        emailSender.send(message);
-        System.out.println("Đã gửi email đến: " + to);
+        // Thay vì gửi mail thật (dễ gây lỗi nếu cấu hình sai), ta chỉ in ra màn hình
+        System.out.println("================ EMAIL MOCK ================");
+        System.out.println("Gửi đến: " + to);
+        System.out.println("Tiêu đề: " + subject);
+        System.out.println("Nội dung: " + text);
+        System.out.println("============================================");
     }
 }
