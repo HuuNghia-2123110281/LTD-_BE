@@ -24,15 +24,13 @@ import com.nghiashop.ecome_backend.entity.User;
 import com.nghiashop.ecome_backend.repository.UserRepository;
 import com.nghiashop.ecome_backend.service.EmailService;
 
-// DTO 1: Dùng để nhận yêu cầu gửi OTP
 class OtpRequest {
     public String email;
 }
 
-// DTO 2: Dùng để xác nhận đổi mật khẩu
 class ResetPasswordRequest {
     public String email;
-    public String otp;         // <--- Bắt buộc phải có OTP
+    public String otp;
     public String newPassword;
 }
 
@@ -51,44 +49,54 @@ public class AuthController {
     @Autowired
     private EmailService emailService;
 
-    // Bộ nhớ tạm lưu OTP (Key: Email, Value: Mã OTP)
-    // Dùng ConcurrentHashMap để an toàn khi có nhiều người dùng cùng lúc
     private Map<String, String> otpStorage = new ConcurrentHashMap<>();
 
-    // --- API 1: GỬI OTP QUA EMAIL ---
+    // --- API 1: GỬI OTP (CHẾ ĐỘ DEBUG - HIỆN LỖI) ---
     @PostMapping("/send-otp")
     public ResponseEntity<?> sendOtp(@RequestBody OtpRequest request) {
-        // 1. Kiểm tra email có tồn tại không
+        // 1. Kiểm tra email
         Optional<User> userOptional = userRepository.findByEmail(request.email);
         if (userOptional.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("message", "Email chưa được đăng ký trong hệ thống"));
+                    .body(Map.of("message", "Email chưa được đăng ký"));
         }
 
-        // 2. Tạo mã OTP ngẫu nhiên (6 chữ số)
+        // 2. Tạo OTP
         String otpCode = String.valueOf(new Random().nextInt(900000) + 100000);
-        
-        // 3. Lưu OTP vào bộ nhớ tạm (Ghi đè nếu đã có cũ)
         otpStorage.put(request.email, otpCode);
 
-        // 4. Gửi Email (Chạy luồng riêng để App không phải chờ lâu)
-        new Thread(() -> {
+        // 3. Gửi Email (BỎ THREAD ĐI ĐỂ TEST LỖI)
+        try {
+            System.out.println("⏳ Đang thử gửi email tới: " + request.email);
+            
             String subject = "Mã xác thực quên mật khẩu - NghiaShop";
             String content = "Xin chào " + userOptional.get().getFullName() + ",\n\n" +
                              "Mã OTP xác thực của bạn là: " + otpCode + "\n" +
-                             "Mã này có hiệu lực trong 5 phút. Vui lòng không chia sẻ cho ai.\n\n" +
+                             "Mã này có hiệu lực trong 5 phút.\n\n" +
                              "Trân trọng,\nNghiaShop Team.";
+            
+            // Gọi trực tiếp: Nếu lỗi dòng này sẽ nhảy xuống catch ngay
             emailService.sendEmail(request.email, subject, content);
-        }).start();
+            
+            System.out.println("✅ Gửi thành công!");
 
-        return ResponseEntity.ok(Map.of("message", "Mã xác thực đã được gửi tới email của bạn!"));
+        } catch (Exception e) {
+            // IN LỖI RA CONSOLE CHO BẠN THẤY
+            System.err.println("❌ LỖI GỬI MAIL CHI TIẾT: " + e.getMessage());
+            e.printStackTrace();
+
+            // TRẢ VỀ LỖI CHO APP THẤY
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi gửi mail: " + e.getMessage()));
+        }
+
+        return ResponseEntity.ok(Map.of("message", "Mã xác thực đã được gửi tới email!"));
     }
 
-    // --- API 2: ĐỔI MẬT KHẨU (CẦN OTP) ---
+    // --- API 2: ĐỔI MẬT KHẨU ---
     @PostMapping("/reset-password")
     public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
         try {
-            // 1. Kiểm tra OTP
             String savedOtp = otpStorage.get(request.email);
             
             if (savedOtp == null) {
@@ -99,15 +107,12 @@ public class AuthController {
                 return ResponseEntity.badRequest().body(Map.of("message", "Mã OTP không chính xác"));
             }
 
-            // 2. Tìm user và đổi mật khẩu
             Optional<User> userOptional = userRepository.findByEmail(request.email);
             if (userOptional.isEmpty()) return ResponseEntity.badRequest().build();
 
             User user = userOptional.get();
             user.setPassword(passwordEncoder.encode(request.newPassword));
             userRepository.save(user);
-
-            // 3. Xóa OTP sau khi dùng xong (để không dùng lại được)
             otpStorage.remove(request.email);
 
             return ResponseEntity.ok(Map.of("message", "Đổi mật khẩu thành công! Hãy đăng nhập lại."));
@@ -118,7 +123,7 @@ public class AuthController {
         }
     }
 
-    // ... (Giữ nguyên các API login/register cũ)
+    // ... (Giữ nguyên register/login)
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody User user) {
         try {
