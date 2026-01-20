@@ -2,6 +2,7 @@ package com.nghiashop.ecome_backend.controller;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,8 +18,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.nghiashop.ecome_backend.config.JwtUtil;
+import com.nghiashop.ecome_backend.dto.ResetPasswordRequest;
 import com.nghiashop.ecome_backend.entity.User;
 import com.nghiashop.ecome_backend.repository.UserRepository;
+import com.nghiashop.ecome_backend.service.EmailService; // <--- Import Service gửi mail
 
 @RestController
 @RequestMapping("/api/auth")
@@ -35,6 +38,10 @@ public class AuthController {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    // Inject EmailService để dùng chức năng gửi mail
+    @Autowired
+    private EmailService emailService; 
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody User user) {
@@ -80,6 +87,49 @@ public class AuthController {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Login failed: " + e.getMessage()));
+        }
+    }
+
+    // --- API: QUÊN MẬT KHẨU (CÓ GỬI EMAIL) ---
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
+        try {
+            // 1. Tìm user theo email
+            Optional<User> userOptional = userRepository.findByEmail(request.getEmail());
+
+            if (userOptional.isEmpty()) {
+                return ResponseEntity
+                        .status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("message", "Email không tồn tại trong hệ thống"));
+            }
+
+            User user = userOptional.get();
+
+            // 2. Mã hóa mật khẩu mới và lưu vào DB
+            user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            userRepository.save(user);
+
+            // 3. Gửi Email thông báo (Bọc try-catch để lỗi gửi mail không làm lỗi cả request)
+            try {
+                String subject = "Thông báo thay đổi mật khẩu - NghiaShop";
+                String text = "Xin chào " + (user.getFullName() != null ? user.getFullName() : "bạn") + ",\n\n" +
+                              "Mật khẩu của bạn đã được thay đổi thành công.\n" +
+                              "Nếu bạn không thực hiện thao tác này, vui lòng liên hệ admin ngay lập tức.\n\n" +
+                              "Trân trọng,\nNghiaShop Team.";
+                
+                emailService.sendEmail(user.getEmail(), subject, text);
+            } catch (Exception e) {
+                System.err.println("Lỗi gửi mail: " + e.getMessage());
+                // Vẫn cho return OK vì mật khẩu đã đổi thành công, chỉ là mail không gửi được
+            }
+
+            // 4. Trả về thành công
+            return ResponseEntity.ok(Map.of("message", "Đổi mật khẩu thành công! Vui lòng kiểm tra email."));
+
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi đổi mật khẩu: " + e.getMessage()));
         }
     }
 }
