@@ -11,20 +11,17 @@ public class EmailService {
     @Autowired
     private JavaMailSender emailSender;
 
-    public void sendEmail(String to, String subject, String text) {
-        try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("NghiaShop Support <nghia03052004@gmail.com>");
-            message.setTo(to);
-            message.setSubject(subject);
-            message.setText(text);
-            
-            emailSender.send(message);
-            System.out.println("✅ Đã gửi email thành công đến: " + to);
-            
-        } catch (Exception e) {
-            System.err.println("❌ Lỗi gửi email: " + e.getMessage());
-            e.printStackTrace();
-        }
+    // THÊM CHỮ "throws Exception" VÀO SAU TÊN HÀM
+    public void sendEmail(String to, String subject, String text) throws Exception {
+        // XÓA TRY-CATCH ĐI, ĐỂ LỖI BẮN THẲNG RA NGOÀI
+        
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom("NghiaShop Support <nghia03052004@gmail.com>");
+        message.setTo(to);
+        message.setSubject(subject);
+        message.setText(text);
+        
+        emailSender.send(message);
+        System.out.println("✅ Đã gửi email thành công đến: " + to);
     }
 }
