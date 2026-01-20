@@ -49,54 +49,56 @@ public class AuthController {
     @Autowired
     private EmailService emailService;
 
+    // Bộ nhớ tạm lưu OTP (Key: Email, Value: Mã OTP)
     private Map<String, String> otpStorage = new ConcurrentHashMap<>();
 
-    // --- API 1: GỬI OTP (CHẾ ĐỘ DEBUG - HIỆN LỖI) ---
+    // --- API 1: GỬI OTP (CHẠY NGẦM - KHÔNG TREO APP) ---
     @PostMapping("/send-otp")
     public ResponseEntity<?> sendOtp(@RequestBody OtpRequest request) {
-        // 1. Kiểm tra email
+        // 1. Kiểm tra email có tồn tại không
         Optional<User> userOptional = userRepository.findByEmail(request.email);
         if (userOptional.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("message", "Email chưa được đăng ký"));
+                    .body(Map.of("message", "Email chưa được đăng ký trong hệ thống"));
         }
 
-        // 2. Tạo OTP
+        // 2. Tạo mã OTP ngẫu nhiên (6 chữ số)
         String otpCode = String.valueOf(new Random().nextInt(900000) + 100000);
+        
+        // 3. Lưu OTP vào bộ nhớ tạm
         otpStorage.put(request.email, otpCode);
 
-        // 3. Gửi Email (BỎ THREAD ĐI ĐỂ TEST LỖI)
-        try {
-            System.out.println("⏳ Đang thử gửi email tới: " + request.email);
-            
-            String subject = "Mã xác thực quên mật khẩu - NghiaShop";
-            String content = "Xin chào " + userOptional.get().getFullName() + ",\n\n" +
-                             "Mã OTP xác thực của bạn là: " + otpCode + "\n" +
-                             "Mã này có hiệu lực trong 5 phút.\n\n" +
-                             "Trân trọng,\nNghiaShop Team.";
-            
-            // Gọi trực tiếp: Nếu lỗi dòng này sẽ nhảy xuống catch ngay
-            emailService.sendEmail(request.email, subject, content);
-            
-            System.out.println("✅ Gửi thành công!");
+        // 4. GỬI MAIL TRONG LUỒNG RIÊNG (Thread)
+        // Giúp API trả về kết quả NGAY LẬP TỨC, không bắt App phải chờ
+        new Thread(() -> {
+            try {
+                System.out.println("⏳ [Background] Đang gửi OTP tới: " + request.email);
+                
+                String subject = "Mã xác thực quên mật khẩu - NghiaShop";
+                String content = "Xin chào " + userOptional.get().getFullName() + ",\n\n" +
+                                 "Mã OTP xác thực của bạn là: " + otpCode + "\n" +
+                                 "Mã này có hiệu lực trong 5 phút. Vui lòng không chia sẻ cho ai.\n\n" +
+                                 "Trân trọng,\nNghiaShop Team.";
+                
+                emailService.sendEmail(request.email, subject, content);
+                
+                System.out.println("✅ [Background] Gửi mail thành công!");
+            } catch (Exception e) {
+                // Nếu lỗi, nó sẽ hiện trong Logs trên Railway (App không cần biết lỗi này)
+                System.err.println("❌ [Background] Lỗi gửi mail: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }).start();
 
-        } catch (Exception e) {
-            // IN LỖI RA CONSOLE CHO BẠN THẤY
-            System.err.println("❌ LỖI GỬI MAIL CHI TIẾT: " + e.getMessage());
-            e.printStackTrace();
-
-            // TRẢ VỀ LỖI CHO APP THẤY
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("message", "Lỗi gửi mail: " + e.getMessage()));
-        }
-
-        return ResponseEntity.ok(Map.of("message", "Mã xác thực đã được gửi tới email!"));
+        // 5. Trả về thành công ngay lập tức
+        return ResponseEntity.ok(Map.of("message", "Đang gửi mã xác thực, vui lòng kiểm tra email sau giây lát!"));
     }
 
-    // --- API 2: ĐỔI MẬT KHẨU ---
+    // --- API 2: ĐỔI MẬT KHẨU (CẦN OTP) ---
     @PostMapping("/reset-password")
     public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
         try {
+            // 1. Kiểm tra OTP
             String savedOtp = otpStorage.get(request.email);
             
             if (savedOtp == null) {
@@ -107,12 +109,15 @@ public class AuthController {
                 return ResponseEntity.badRequest().body(Map.of("message", "Mã OTP không chính xác"));
             }
 
+            // 2. Tìm user và đổi mật khẩu
             Optional<User> userOptional = userRepository.findByEmail(request.email);
             if (userOptional.isEmpty()) return ResponseEntity.badRequest().build();
 
             User user = userOptional.get();
             user.setPassword(passwordEncoder.encode(request.newPassword));
             userRepository.save(user);
+
+            // 3. Xóa OTP sau khi dùng xong
             otpStorage.remove(request.email);
 
             return ResponseEntity.ok(Map.of("message", "Đổi mật khẩu thành công! Hãy đăng nhập lại."));
@@ -123,7 +128,7 @@ public class AuthController {
         }
     }
 
-    // ... (Giữ nguyên register/login)
+    // ... (Giữ nguyên API Register)
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody User user) {
         try {
@@ -139,6 +144,7 @@ public class AuthController {
         }
     }
 
+    // ... (Giữ nguyên API Login)
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody User request) {
         try {
