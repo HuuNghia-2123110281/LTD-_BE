@@ -92,8 +92,15 @@ public class PayosController {
             
             // PayOS trả về QR dạng EMVCo (text), không phải URL hình ảnh
             // Nên ta sẽ tạo QR bằng VietQR API
+            
+            // THAY ĐỔI: Đổi sang MBBank của bạn
+            String bankCode = "MB";  // MB = MBBank
+            String accountNumber = "0123456789";  // ← THAY SỐ TÀI KHOẢN MBBANK CỦA BẠN
+            
             String qrCodeUrl = String.format(
-                "https://img.vietqr.io/image/TCB-19037517161013-compact2.png?amount=%d&addInfo=DH%d",
+                "https://img.vietqr.io/image/%s-%s-compact2.png?amount=%d&addInfo=DH%d",
+                bankCode,
+                accountNumber,
                 amount,
                 order.getId()
             );
