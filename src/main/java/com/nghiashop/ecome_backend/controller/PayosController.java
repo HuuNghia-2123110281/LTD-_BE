@@ -87,13 +87,35 @@ public class PayosController {
                 throw new RuntimeException("PayOS không trả về checkoutUrl");
             }
 
+            // ===== TẠO QR CODE URL =====
+            String qrCodeUrl = (String) data.get("qrCode");
+            
+            // Nếu PayOS không trả về QR code, tự tạo bằng VietQR
+            if (qrCodeUrl == null || qrCodeUrl.isEmpty()) {
+                Long amount = dto.amount != null ? dto.amount : order.getTotalPrice();
+                
+                // Sử dụng VietQR API để tạo QR code
+                // Thay đổi BANK_CODE và ACCOUNT_NUMBER theo thông tin của bạn
+                qrCodeUrl = String.format(
+                    "https://img.vietqr.io/image/TCB-19037517161013-compact2.png?amount=%d&addInfo=DH%d",
+                    amount,
+                    order.getId()
+                );
+                
+                System.out.println("🔗 Generated QR URL: " + qrCodeUrl);
+            }
+            // ============================
+            
             // Trả response cho client
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("paymentUrl", checkoutUrl);
+            response.put("qrCode", qrCodeUrl); // QR code URL
             response.put("orderCode", orderCode);
             response.put("orderId", dto.orderId);
             response.put("amount", dto.amount != null ? dto.amount : order.getTotalPrice());
+
+            System.out.println("✅ Response to client: " + response);
 
             return ResponseEntity.ok(response);
 
@@ -230,7 +252,7 @@ public class PayosController {
 
     public static class CreatePaymentDto {
         public Long orderId;
-        public Long amount; // Nếu null sẽ dùng totalPrice của order
+        public Long amount; 
         public String returnUrl;
         public String cancelUrl;
         public Integer expiredAt;
