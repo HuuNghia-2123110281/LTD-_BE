@@ -46,7 +46,9 @@ public class SecurityConfig {
                                 "/api/categories/**")
                                 
                         .permitAll()
+                        .requestMatchers("/api/orders/**").authenticated()
                         .requestMatchers("/api/cart/**").authenticated() 
+                        .requestMatchers("/api/order-items/**").authenticated()
                         // Các request khác cần authentication
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
