@@ -16,6 +16,7 @@ public class OrderItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    
 
     // Liên kết với sản phẩm
     @ManyToOne(fetch = FetchType.EAGER)
