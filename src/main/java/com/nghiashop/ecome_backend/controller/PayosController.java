@@ -95,7 +95,7 @@ public class PayosController {
             
             // THAY ĐỔI: Đổi sang MBBank của bạn
             String bankCode = "MB";  // MB = MBBank
-            String accountNumber = "0123456789";  // ← THAY SỐ TÀI KHOẢN MBBANK CỦA BẠN
+            String accountNumber = "19037517161013";  // ← THAY SỐ TÀI KHOẢN MBBANK CỦA BẠN
             
             String qrCodeUrl = String.format(
                 "https://img.vietqr.io/image/%s-%s-compact2.png?amount=%d&addInfo=DH%d",
