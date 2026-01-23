@@ -26,7 +26,6 @@ public class OrderItem {
     
     private Long price; 
 
-    // --- SỬA LỖI TẠI ĐÂY ---
     @ManyToOne
     @JoinColumn(name = "order_id")
     @JsonIgnore 
