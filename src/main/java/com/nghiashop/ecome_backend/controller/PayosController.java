@@ -87,26 +87,25 @@ public class PayosController {
                 throw new RuntimeException("PayOS không trả về checkoutUrl");
             }
 
-            // ===== TẠO QR CODE URL BẰNG VIETQR =====
+            // ===== LẤY QR CODE TỪ PAYOS =====
             Long amount = dto.amount != null ? dto.amount : order.getTotalPrice();
             
-            // PayOS trả về QR dạng EMVCo (text), không phải URL hình ảnh
-            // Nên ta sẽ tạo QR bằng VietQR API
+            // PayOS trả về QR code dạng EMVCo (text string)
+            String qrCodeString = (String) data.get("qrCode");
             
-            // THAY ĐỔI: Đổi sang MBBank của bạn
-            String bankCode = "MB";  // MB = MBBank
-            String accountNumber = "0977451512";  // ← THAY SỐ TÀI KHOẢN MBBANK CỦA BẠN
+            if (qrCodeString == null || qrCodeString.isEmpty()) {
+                throw new RuntimeException("PayOS không trả về QR code");
+            }
             
+            // Convert EMVCo string thành URL hình ảnh bằng API QR generator
             String qrCodeUrl = String.format(
-                "https://img.vietqr.io/image/%s-%s-compact2.png?amount=%d&addInfo=DH%d",
-                bankCode,
-                accountNumber,
-                amount,
-                order.getId()
+                "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=%s",
+                java.net.URLEncoder.encode(qrCodeString, "UTF-8")
             );
             
-            System.out.println("🔗 Generated QR URL: " + qrCodeUrl);
-            // ========================================
+            System.out.println("🔗 QR Code EMVCo: " + qrCodeString.substring(0, Math.min(50, qrCodeString.length())) + "...");
+            System.out.println("🔗 QR Code URL: " + qrCodeUrl);
+            // ====================================
             
             // Trả response cho client
             Map<String, Object> response = new HashMap<>();
@@ -178,12 +177,10 @@ public class PayosController {
         try {
             System.out.println("🔍 Verify payment: " + orderCode);
 
-            // Lấy trạng thái từ PayOS
-            Map<String, Object> payosStatus = payosService.getPaymentStatus(orderCode);
-
             // Tìm orderId từ orderCode
             Long orderId = orderCodeMap.get(orderCode);
             if (orderId == null) {
+                System.err.println("❌ Không tìm thấy orderCode trong map: " + orderCode);
                 return ResponseEntity.status(404).body(Map.of(
                         "success", false,
                         "error", "Không tìm thấy order"));
@@ -193,30 +190,51 @@ public class PayosController {
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy order"));
 
             boolean isPaid = false;
-            if (payosStatus != null && "00".equals(payosStatus.get("code"))) {
-                Map<String, Object> data = (Map<String, Object>) payosStatus.get("data");
-                String status = (String) data.get("status");
+            
+            try {
+                // Lấy trạng thái từ PayOS
+                Map<String, Object> payosStatus = payosService.getPaymentStatus(orderCode);
+                
+                System.out.println("📥 PayOS verify response: " + payosStatus);
 
-                if ("PAID".equals(status)) {
-                    isPaid = true;
+                if (payosStatus != null && "00".equals(payosStatus.get("code"))) {
+                    Map<String, Object> data = (Map<String, Object>) payosStatus.get("data");
+                    String status = (String) data.get("status");
+                    
+                    System.out.println("📊 Payment status from PayOS: " + status);
 
-                    // Cập nhật nếu chưa được cập nhật
-                    if (!"PAID".equals(order.getStatus())) {
-                        order.setStatus("PAID");
-                        orderRepository.save(order);
-                        System.out.println("✅ Đã cập nhật status=PAID cho order #" + order.getId());
+                    if ("PAID".equals(status)) {
+                        isPaid = true;
+
+                        // Cập nhật nếu chưa được cập nhật
+                        if (!"PAID".equals(order.getStatus())) {
+                            order.setStatus("PAID");
+                            orderRepository.save(order);
+                            System.out.println("✅ Đã cập nhật status=PAID cho order #" + order.getId());
+                        }
                     }
+                }
+            } catch (Exception e) {
+                // Nếu PayOS API lỗi, vẫn trả về status hiện tại của order
+                System.err.println("⚠️ Lỗi khi gọi PayOS API: " + e.getMessage());
+                // Check xem order đã PAID chưa
+                if ("PAID".equals(order.getStatus())) {
+                    isPaid = true;
                 }
             }
 
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "orderId", order.getId(),
-                    "orderCode", orderCode,
-                    "isPaid", isPaid,
-                    "status", order.getStatus(),
-                    "totalPrice", order.getTotalPrice(),
-                    "paymentMethod", order.getPaymentMethod() != null ? order.getPaymentMethod() : ""));
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("orderId", order.getId());
+            response.put("orderCode", orderCode);
+            response.put("isPaid", isPaid);
+            response.put("status", order.getStatus());
+            response.put("totalPrice", order.getTotalPrice());
+            response.put("paymentMethod", order.getPaymentMethod() != null ? order.getPaymentMethod() : "");
+
+            System.out.println("✅ Verify response: isPaid=" + isPaid + ", status=" + order.getStatus());
+
+            return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             System.err.println("❌ Error verifying payment: " + e.getMessage());
