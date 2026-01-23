@@ -9,5 +9,5 @@ import com.nghiashop.ecome_backend.entity.User;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByUser(User user);
-    List<Order> findByUserOrderByCreatedAtDesc(User user);
+    
 }
