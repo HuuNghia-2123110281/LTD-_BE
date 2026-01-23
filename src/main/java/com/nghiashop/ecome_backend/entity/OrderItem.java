@@ -18,13 +18,12 @@ public class OrderItem {
     private Long id;
 
     // Liên kết với sản phẩm
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "product_id")
     private Product product;
 
     private int quantity;
     
-    // Lưu giá tiền tại thời điểm mua (để sau này giá sản phẩm đổi cũng không ảnh hưởng đơn cũ)
     private Long price; 
 
     // --- SỬA LỖI TẠI ĐÂY ---
