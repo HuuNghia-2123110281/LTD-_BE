@@ -28,7 +28,7 @@ public class PayosController {
     private final PayosService payosService;
     private final OrderRepository orderRepository;
 
-    // Map tạm để lưu mapping giữa orderCode và orderId (trong thực tế nên dùng Redis/DB)
+    // Map tạm để lưu mapping giữa orderCode và orderId
     private final Map<Long, Long> orderCodeMap = new HashMap<>();
 
     @PostMapping("/create")
@@ -87,24 +87,19 @@ public class PayosController {
                 throw new RuntimeException("PayOS không trả về checkoutUrl");
             }
 
-            // ===== TẠO QR CODE URL =====
-            String qrCodeUrl = (String) data.get("qrCode");
+            // ===== TẠO QR CODE URL BẰNG VIETQR =====
+            Long amount = dto.amount != null ? dto.amount : order.getTotalPrice();
             
-            // Nếu PayOS không trả về QR code, tự tạo bằng VietQR
-            if (qrCodeUrl == null || qrCodeUrl.isEmpty()) {
-                Long amount = dto.amount != null ? dto.amount : order.getTotalPrice();
-                
-                // Sử dụng VietQR API để tạo QR code
-                // Thay đổi BANK_CODE và ACCOUNT_NUMBER theo thông tin của bạn
-                qrCodeUrl = String.format(
-                    "https://img.vietqr.io/image/TCB-19037517161013-compact2.png?amount=%d&addInfo=DH%d",
-                    amount,
-                    order.getId()
-                );
-                
-                System.out.println("🔗 Generated QR URL: " + qrCodeUrl);
-            }
-            // ============================
+            // PayOS trả về QR dạng EMVCo (text), không phải URL hình ảnh
+            // Nên ta sẽ tạo QR bằng VietQR API
+            String qrCodeUrl = String.format(
+                "https://img.vietqr.io/image/TCB-19037517161013-compact2.png?amount=%d&addInfo=DH%d",
+                amount,
+                order.getId()
+            );
+            
+            System.out.println("🔗 Generated QR URL: " + qrCodeUrl);
+            // ========================================
             
             // Trả response cho client
             Map<String, Object> response = new HashMap<>();
@@ -113,7 +108,7 @@ public class PayosController {
             response.put("qrCode", qrCodeUrl); // QR code URL
             response.put("orderCode", orderCode);
             response.put("orderId", dto.orderId);
-            response.put("amount", dto.amount != null ? dto.amount : order.getTotalPrice());
+            response.put("amount", amount);
 
             System.out.println("✅ Response to client: " + response);
 
@@ -152,17 +147,13 @@ public class PayosController {
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy order #" + orderId));
 
             if ("PAID".equals(status)) {
-                // Cập nhật trạng thái đơn hàng thành PAID
                 order.setStatus("PAID");
                 orderRepository.save(order);
-
                 System.out.println("✅ Đã cập nhật status=PAID cho order #" + order.getId());
                 
             } else if ("CANCELLED".equals(status)) {
-                // Cập nhật trạng thái đơn hàng thành CANCELLED
                 order.setStatus("CANCELLED");
                 orderRepository.save(order);
-
                 System.out.println("❌ Thanh toán bị hủy cho order #" + order.getId());
             }
 
