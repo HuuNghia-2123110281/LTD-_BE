@@ -19,7 +19,6 @@ public class EmailServiceImpl implements EmailService {
 
     private final Resend resend;
 
-    @Async
     @Override
     public void sendResetPasswordEmail(String toEmail, String resetToken) {
         try {
