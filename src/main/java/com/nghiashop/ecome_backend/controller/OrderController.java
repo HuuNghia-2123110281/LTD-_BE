@@ -2,19 +2,17 @@ package com.nghiashop.ecome_backend.controller;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import com.nghiashop.ecome_backend.dto.OrderDTO;
 import com.nghiashop.ecome_backend.dto.OrderItemDTO;
 import com.nghiashop.ecome_backend.entity.Order;
 import com.nghiashop.ecome_backend.entity.OrderItem;
-import com.nghiashop.ecome_backend.entity.User;
-import com.nghiashop.ecome_backend.repository.UserRepository;
 import com.nghiashop.ecome_backend.service.OrderService;
 
 @RestController
@@ -24,27 +22,9 @@ public class OrderController {
     @Autowired
     private OrderService orderService;
 
-    @Autowired
-    private UserRepository userRepository;
-
     @GetMapping
-    public ResponseEntity<List<OrderDTO>> getAllOrdersForCurrentUser(Authentication authentication) {
-        if (authentication == null) {
-            return ResponseEntity.status(401).build();
-        }
-
-        String email = authentication.getName();
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        // ✅ Dùng service method thay vì filter thủ công
-        List<Order> orders = orderService.getOrdersByUser(user);
-
-        List<OrderDTO> orderDTOs = orders.stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(orderDTOs);
+    public List<Order> getAll() {
+        return orderService.getAll();
     }
 
     @GetMapping("/{id}")
@@ -54,27 +34,7 @@ public class OrderController {
             return ResponseEntity.notFound().build();
         }
 
-        OrderDTO dto = convertToDTO(order);
-        return ResponseEntity.ok(dto);
-    }
-
-    @PostMapping
-    public ResponseEntity<Order> create(@RequestBody Order order) {
-        order.setCreatedAt(LocalDateTime.now());
-        order.setStatus("PENDING");
-
-        if (order.getItems() != null) {
-            for (OrderItem item : order.getItems()) {
-                item.setOrder(order);
-            }
-        }
-
-        Order savedOrder = orderService.create(order);
-        return ResponseEntity.ok(savedOrder);
-    }
-
-    // ✅ Helper method để convert Order sang OrderDTO
-    private OrderDTO convertToDTO(Order order) {
+        // Tạo DTO để trả về đầy đủ thông tin
         OrderDTO dto = new OrderDTO();
         dto.setId(order.getId());
         dto.setTotalPrice(order.getTotalPrice());
@@ -84,19 +44,35 @@ public class OrderController {
 
         // Map OrderItems với thông tin sản phẩm đầy đủ
         List<OrderItemDTO> itemDTOs = order.getItems().stream()
-                .map(item -> {
-                    OrderItemDTO itemDTO = new OrderItemDTO();
-                    itemDTO.setId(item.getId());
-                    itemDTO.setProductId(item.getProduct().getId());
-                    itemDTO.setProductName(item.getProduct().getName());
-                    itemDTO.setProductImage(item.getProduct().getImage());
-                    itemDTO.setQuantity(item.getQuantity());
-                    itemDTO.setPrice(item.getPrice());
-                    return itemDTO;
-                })
+                .map(item -> new OrderItemDTO(
+                        item.getId(),
+                        item.getProduct().getId(),
+                        item.getProduct().getName(),
+                        item.getProduct().getImage(),
+                        item.getQuantity(),
+                        item.getPrice()))
                 .collect(Collectors.toList());
 
         dto.setItems(itemDTOs);
-        return dto;
+
+        return ResponseEntity.ok(dto);
+    }
+
+    @PostMapping
+    public ResponseEntity<Order> create(@RequestBody Order order) {
+        order.setCreatedAt(LocalDateTime.now());
+
+        // Luôn set trạng thái ban đầu là PENDING
+        order.setStatus("PENDING");
+
+        // Liên kết OrderItem với Order
+        if (order.getItems() != null) {
+            for (OrderItem item : order.getItems()) {
+                item.setOrder(order);
+            }
+        }
+
+        Order savedOrder = orderService.create(order);
+        return ResponseEntity.ok(savedOrder);
     }
 }

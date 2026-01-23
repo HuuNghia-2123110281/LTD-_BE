@@ -37,52 +37,28 @@ public class JwtFilter extends OncePerRequestFilter {
             FilterChain filterChain)
             throws ServletException, IOException {
 
-        String path = request.getServletPath();
-        System.out.println("🔍 Request path: " + path);
-
         String header = request.getHeader("Authorization");
-        System.out.println("🔍 Authorization header: " + header);
-
-        String token = null;
-        String email = null;
 
         if (header != null && header.startsWith("Bearer ")) {
-            token = header.substring(7);
-            System.out.println("🔍 Extracted token: " + token);
+            String token = header.substring(7);
+            String email = jwtUtil.extractEmail(token);
 
-            try {
-                email = jwtUtil.extractEmail(token);
-                System.out.println("✅ Extracted email: " + email);
-            } catch (Exception e) {
-                System.out.println("❌ JWT Token extraction failed: " + e.getMessage());
-                e.printStackTrace();
-            }
-        }
+            if (email != null &&
+                    SecurityContextHolder.getContext().getAuthentication() == null) {
 
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            try {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-                System.out.println("✅ User details loaded: " + userDetails.getUsername());
 
-                if (jwtUtil.validateToken(token, userDetails)) {
-                    UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null,
-                            userDetails.getAuthorities());
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                        userDetails,
+                        null,
+                        userDetails.getAuthorities());
 
-                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(auth);
+                auth.setDetails(
+                        new WebAuthenticationDetailsSource()
+                                .buildDetails(request));
 
-                    System.out.println("✅ Authentication set for user: " + email);
-                } else {
-                    System.out.println("❌ Token validation failed for user: " + email);
-                }
-            } catch (Exception e) {
-                System.out.println("❌ Error in authentication: " + e.getMessage());
-                e.printStackTrace();
+                SecurityContextHolder.getContext().setAuthentication(auth);
             }
-        } else {
-            System.out.println("⚠️ No email extracted or authentication already set");
         }
 
         filterChain.doFilter(request, response);

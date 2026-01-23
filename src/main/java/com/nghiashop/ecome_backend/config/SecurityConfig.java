@@ -38,27 +38,17 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
                 .authorizeHttpRequests(auth -> auth
-                        // ✅ Public endpoints
+                        // Cho phép truy cập public
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/products/**",
-                                "/api/categories/**",
-                                "/api/payment/verify/**",
-                                "/api/payment/webhook/**")
+                                "/api/payment/**",
+                                "/api/categories/**")
+                                
                         .permitAll()
-
-                        // ✅ Protected endpoints - Cần authentication
-                        .requestMatchers(
-                                "/api/orders/**",
-                                "/api/cart/**",
-                                "/api/cart-items/**",
-                                "/api/order-items/**",
-                                "/api/addresses/**",
-                                "/api/payment/create",
-                                "/api/payment/confirm/**",
-                                "/api/payment/history/**")
-                        .permitAll()
-
+                        .requestMatchers("/api/orders/**").authenticated()
+                        .requestMatchers("/api/cart/**").authenticated() 
+                        .requestMatchers("/api/order-items/**").authenticated()
                         // Các request khác cần authentication
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
