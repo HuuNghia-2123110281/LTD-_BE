@@ -1,6 +1,5 @@
 package com.nghiashop.ecome_backend.entity;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -27,8 +26,9 @@ public class OrderItem {
     
     private Long price; 
 
+    // --- SỬA LỖI TẠI ĐÂY ---
     @ManyToOne
     @JoinColumn(name = "order_id")
-    @JsonBackReference
+    @JsonIgnore 
     private Order order;
 }
