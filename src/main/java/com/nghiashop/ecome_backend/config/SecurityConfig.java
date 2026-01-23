@@ -57,7 +57,7 @@ public class SecurityConfig {
                                 "/api/payment/create",
                                 "/api/payment/confirm/**",
                                 "/api/payment/history/**")
-                        .authenticated()
+                        .permitAll()
 
                         // Các request khác cần authentication
                         .anyRequest().authenticated())
