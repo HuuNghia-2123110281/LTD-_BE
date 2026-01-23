@@ -25,10 +25,8 @@ public class Order {
 
     private Long totalPrice;
 
-    // Trạng thái: PENDING, PAID, CANCELLED
     private String status;
 
-    // Loại thanh toán: TCB, MOMO, ZALOPAY, COD
     private String paymentMethod;
 
     private LocalDateTime createdAt;
