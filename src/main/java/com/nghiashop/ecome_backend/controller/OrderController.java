@@ -57,7 +57,7 @@ public class OrderController {
         return ResponseEntity.ok(savedOrder);
     }
 
-    // Helper method để chuyển Order -> OrderDTO
+    // Helper method để chuyển Order -> OrderDTo
     private OrderDTO convertToDTO(Order order) {
         OrderDTO dto = new OrderDTO();
         dto.setId(order.getId());
@@ -74,7 +74,7 @@ public class OrderController {
                 item.getProduct().getImage(),
                 item.getQuantity(),
                 item.getPrice()
-            ))
+            ))   
             .collect(Collectors.toList());
 
         dto.setItems(itemDTOs);
