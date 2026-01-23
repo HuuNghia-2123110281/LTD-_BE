@@ -6,58 +6,91 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import com.nghiashop.ecome_backend.dto.OrderDTO;
 import com.nghiashop.ecome_backend.dto.OrderItemDTO;
 import com.nghiashop.ecome_backend.entity.Order;
 import com.nghiashop.ecome_backend.entity.OrderItem;
+import com.nghiashop.ecome_backend.entity.User;
 import com.nghiashop.ecome_backend.service.OrderService;
+import com.nghiashop.ecome_backend.service.impl.OrderServiceImpl;
 
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
 
     @Autowired
-    private OrderService orderService;
+    private OrderServiceImpl orderService; // Đổi sang OrderServiceImpl để có thể gọi getAllByUser
 
+    // Lấy tất cả đơn hàng của user đang đăng nhập
     @GetMapping
-    public ResponseEntity<List<OrderDTO>> getAll() {
-        List<Order> orders = orderService.getAll();
-        List<OrderDTO> orderDTOs = orders.stream()
-            .map(this::convertToDTO)  // Sử dụng helper method
-            .collect(Collectors.toList());
-        
-        return ResponseEntity.ok(orderDTOs);
+    public ResponseEntity<List<OrderDTO>> getMyOrders(@AuthenticationPrincipal User user) {
+        try {
+            if (user == null) {
+                return ResponseEntity.status(401).build(); // Unauthorized
+            }
+            
+            List<OrderDTO> orderDTOs = orderService.getAllByUser(user);
+            return ResponseEntity.ok(orderDTOs);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
+        }
     }
 
+    // Lấy chi tiết 1 đơn hàng
     @GetMapping("/{id}")
-    public ResponseEntity<OrderDTO> getOrderById(@PathVariable Long id) {
-        Order order = orderService.getById(id);
-        if (order == null) {
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<OrderDTO> getOrderById(@PathVariable Long id, 
+                                                  @AuthenticationPrincipal User user) {
+        try {
+            Order order = orderService.getById(id);
+            
+            if (order == null) {
+                return ResponseEntity.notFound().build();
+            }
 
-        OrderDTO dto = convertToDTO(order);  // Sử dụng helper method
-        return ResponseEntity.ok(dto);
+            // Kiểm tra quyền truy cập - chỉ user sở hữu mới xem được
+            if (user == null || !order.getUser().getId().equals(user.getId())) {
+                return ResponseEntity.status(403).build(); // Forbidden
+            }
+
+            OrderDTO dto = convertToDTO(order);
+            return ResponseEntity.ok(dto);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
+        }
     }
 
     @PostMapping
-    public ResponseEntity<Order> create(@RequestBody Order order) {
-        order.setCreatedAt(LocalDateTime.now());
-        order.setStatus("PENDING");
-
-        if (order.getItems() != null) {
-            for (OrderItem item : order.getItems()) {
-                item.setOrder(order);
+    public ResponseEntity<Order> create(@RequestBody Order order, 
+                                       @AuthenticationPrincipal User user) {
+        try {
+            if (user == null) {
+                return ResponseEntity.status(401).build();
             }
-        }
 
-        Order savedOrder = orderService.create(order);
-        return ResponseEntity.ok(savedOrder);
+            order.setUser(user); // Set user cho order
+            order.setCreatedAt(LocalDateTime.now());
+            order.setStatus("PENDING");
+
+            if (order.getItems() != null) {
+                for (OrderItem item : order.getItems()) {
+                    item.setOrder(order);
+                }
+            }
+
+            Order savedOrder = orderService.create(order);
+            return ResponseEntity.ok(savedOrder);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
+        }
     }
 
-    // Helper method để chuyển Order -> OrderDTo
+    // Helper method để chuyển Order -> OrderDTO
     private OrderDTO convertToDTO(Order order) {
         OrderDTO dto = new OrderDTO();
         dto.setId(order.getId());
@@ -74,7 +107,7 @@ public class OrderController {
                 item.getProduct().getImage(),
                 item.getQuantity(),
                 item.getPrice()
-            ))   
+            ))
             .collect(Collectors.toList());
 
         dto.setItems(itemDTOs);
